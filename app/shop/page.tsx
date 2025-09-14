@@ -20,6 +20,7 @@ export default function ShopPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [language, setLanguage] = useState('en');
   const [isListening, setIsListening] = useState(false);
+  const [customer, setCustomer] = useState<any>(null);
 
   const translations = {
     en: {
@@ -91,16 +92,16 @@ export default function ShopPage() {
   };
 
   useEffect(() => {
+    // Load products
     const savedProducts = localStorage.getItem('products');
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
-    }
-    
-    // Check if customer is logged in
+    if (savedProducts) setProducts(JSON.parse(savedProducts));
+
+    // Load customer and language
     const customerData = localStorage.getItem('customer');
     if (customerData) {
-      const customer = JSON.parse(customerData);
-      setLanguage(customer.language || 'en');
+      const parsedCustomer = JSON.parse(customerData);
+      setCustomer(parsedCustomer);
+      setLanguage(parsedCustomer.language || 'en');
     }
   }, []);
 
@@ -110,27 +111,15 @@ export default function ShopPage() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
-      
+
       recognition.lang = language === 'hi' ? 'hi-IN' : language === 'ta' ? 'ta-IN' : 'en-US';
       recognition.continuous = false;
       recognition.interimResults = false;
 
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setSearchTerm(transcript);
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
+      recognition.onstart = () => setIsListening(true);
+      recognition.onresult = (event: any) => setSearchTerm(event.results[0][0].transcript);
+      recognition.onerror = () => setIsListening(false);
+      recognition.onend = () => setIsListening(false);
 
       recognition.start();
     }
@@ -138,8 +127,9 @@ export default function ShopPage() {
 
   const filteredProducts = products.filter(product => {
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -157,14 +147,11 @@ export default function ShopPage() {
                 <Link href="/shop" className="text-gray-900 hover:text-orange-600 font-medium">
                   {t.allProducts}
                 </Link>
-                <Link href="/about" className="text-gray-600 hover:text-orange-600">
-                  About
-                </Link>
-                <Link href="/contact" className="text-gray-600 hover:text-orange-600">
-                  Contact
-                </Link>
+                <Link href="/about" className="text-gray-600 hover:text-orange-600">About</Link>
+                <Link href="/contact" className="text-gray-600 hover:text-orange-600">Contact</Link>
               </nav>
             </div>
+
             <div className="flex items-center space-x-4">
               <select
                 value={language}
@@ -175,7 +162,8 @@ export default function ShopPage() {
                 <option value="hi">हिंदी</option>
                 <option value="ta">தமிழ்</option>
               </select>
-              {localStorage.getItem('customer') ? (
+
+              {customer ? (
                 <div className="flex items-center space-x-3">
                   <Link href="/cart" className="text-gray-600 hover:text-orange-600">
                     <i className="ri-shopping-cart-line w-6 h-6 flex items-center justify-center"></i>
@@ -183,9 +171,10 @@ export default function ShopPage() {
                   <Link href="/customer-profile" className="text-gray-600 hover:text-orange-600">
                     <i className="ri-user-line w-6 h-6 flex items-center justify-center"></i>
                   </Link>
-                  <button 
+                  <button
                     onClick={() => {
                       localStorage.removeItem('customer');
+                      setCustomer(null);
                       window.location.reload();
                     }}
                     className="text-gray-600 hover:text-red-600"
@@ -195,15 +184,17 @@ export default function ShopPage() {
                 </div>
               ) : (
                 <div className="flex items-center space-x-3">
-                  <Link href="/customer-login" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap">
-                    {language === 'hi' ? 'ग्राहक लॉगिन' : 
-                     language === 'ta' ? 'வாடிக்கையாளர் உள்நுழைவு' : 
-                     'Customer Login'}
+                  <Link
+                    href="/customer-login"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
+                  >
+                    {language === 'hi' ? 'ग्राहक लॉगिन' : language === 'ta' ? 'வாடிக்கையாளர் உள்நுழைவு' : 'Customer Login'}
                   </Link>
-                  <Link href="/login" className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors whitespace-nowrap">
-                    {language === 'hi' ? 'कारीगर लॉगिन' : 
-                     language === 'ta' ? 'கைவினைஞர் உள்நுழைவு' : 
-                     'Artisan Login'}
+                  <Link
+                    href="/login"
+                    className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors whitespace-nowrap"
+                  >
+                    {language === 'hi' ? 'कारीगर लॉगिन' : language === 'ta' ? 'கைவினைஞர் உள்நுழைவு' : 'Artisan Login'}
                   </Link>
                 </div>
               )}
@@ -212,14 +203,16 @@ export default function ShopPage() {
         </div>
       </header>
 
-      {/* Hero Section */}
+      {/* Hero */}
       <section className="bg-gradient-to-r from-orange-500 to-amber-500 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-5xl font-bold mb-6">{t.subtitle}</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            {language === 'hi' ? 'भारत के गाँवों से आपके घर तक - प्रामाणिक हस्तशिल्प' :
-             language === 'ta' ? 'இந்தியாவின் கிராமங்களில் இருந்து உங்கள் வீடு வரை - தூய கைவினைப் பொருட்கள்' :
-             'From India\'s villages to your home - Authentic handcrafted treasures'}
+            {language === 'hi'
+              ? 'भारत के गाँवों से आपके घर तक - प्रामाणिक हस्तशिल्प'
+              : language === 'ta'
+              ? 'இந்தியாவின் கிராமங்களில் இருந்து உங்கள் வீடு வரை - தூய கைவினைப் பொருட்கள்'
+              : 'From India\'s villages to your home - Authentic handcrafted treasures'}
           </p>
           <div className="flex justify-center">
             <div className="relative max-w-md w-full">
@@ -240,9 +233,7 @@ export default function ShopPage() {
               </button>
             </div>
           </div>
-          {isListening && (
-            <p className="mt-4 text-orange-100">{t.listening}</p>
-          )}
+          {isListening && <p className="mt-4 text-orange-100">{t.listening}</p>}
         </div>
       </section>
 
@@ -277,9 +268,11 @@ export default function ShopPage() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">{t.noProducts}</h3>
               <p className="text-gray-600">
-                {language === 'hi' ? 'कृपया अपनी खोज बदलें या किसी अन्य श्रेणी का चयन करें' :
-                 language === 'ta' ? 'தயவுசெய்து உங்கள் தேடலை மாற்றவும் அல்லது வேறு வகையைத் தேர்ந்தெடுக்கவும்' :
-                 'Please try a different search or select another category'}
+                {language === 'hi'
+                  ? 'कृपया अपनी खोज बदलें या किसी अन्य श्रेणी का चयन करें'
+                  : language === 'ta'
+                  ? 'தயவுசெய்து உங்கள் தேடலை மாற்றவும் அல்லது வேறு வகையைத் தேர்ந்தெடுக்கவும்'
+                  : 'Please try a different search or select another category'}
               </p>
             </div>
           ) : (
@@ -288,7 +281,7 @@ export default function ShopPage() {
                 <div key={product.id} className="bg-white rounded-2xl shadow-sm border hover:shadow-lg transition-shadow">
                   <div className="aspect-w-4 aspect-h-3 bg-gray-100 rounded-t-2xl overflow-hidden">
                     <img
-                      src={`https://readdy.ai/api/search-image?query=beautiful%20handcrafted%20$%7Bproduct.name%7D%20$%7Bproduct.category%7D%20artisan%20made%20product%20on%20simple%20clean%20background%2C%20traditional%20craftsmanship%2C%20high%20quality%20detailed%20shot%2C%20warm%20lighting%2C%20rustic%20aesthetic%2C%20authentic%20handmade%20texture&width=400&height=300&seq=${product.id}&orientation=landscape`}
+                      src={`https://readdy.ai/api/search-image?query=beautiful%20handcrafted%20${product.name}%20${product.category}%20artisan%20made%20product&width=400&height=300&seq=${product.id}&orientation=landscape`}
                       alt={product.name}
                       className="w-full h-48 object-cover object-top"
                     />
@@ -304,7 +297,7 @@ export default function ShopPage() {
                       <button className="flex-1 bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium whitespace-nowrap">
                         {t.addToCart}
                       </button>
-                      <Link 
+                      <Link
                         href={`/product/${product.id}`}
                         className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium text-center whitespace-nowrap"
                       >
@@ -324,13 +317,13 @@ export default function ShopPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Pacifico' }}>
-                {t.title}
-              </h3>
+              <h3 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Pacifico' }}>{t.title}</h3>
               <p className="text-gray-400">
-                {language === 'hi' ? 'ग्रामीण कारीगरों के लिए आवाज़-आधारित ई-कॉमर्स प्लेटफॉर्म' :
-                 language === 'ta' ? 'கிராமப்புற கைவினைஞர்களுக்கான குரல் சார்ந்த ई-காமர்ஸ் தளம்' :
-                 'Voice-first e-commerce platform for rural artisans'}
+                {language === 'hi'
+                  ? 'ग्रामीण कारीगरों के लिए आवाज़-आधारित ई-कॉमर्स प्लेटफॉर्म'
+                  : language === 'ta'
+                  ? 'கிராமப்புற கைவினைஞர்களுக்கான குரல் சார்ந்த ई-காமர்ஸ் தளம்'
+                  : 'Voice-first e-commerce platform for rural artisans'}
               </p>
             </div>
             <div>
@@ -339,11 +332,7 @@ export default function ShopPage() {
                 <li><Link href="/shop" className="hover:text-white">Shop</Link></li>
                 <li><Link href="/about" className="hover:text-white">About</Link></li>
                 <li><Link href="/contact" className="hover:text-white">Contact</Link></li>
-                <li><Link href="/login" className="hover:text-white">
-                  {language === 'hi' ? 'कारीगर लॉगिन' : 
-                   language === 'ta' ? 'கைவினைஞர் உள்நுழைவு' : 
-                   'Artisan Login'}
-                </Link></li>
+                <li><Link href="/login" className="hover:text-white">{language === 'hi' ? 'कारीगर लॉगिन' : language === 'ta' ? 'கைவினைஞர் உள்நுழைவு' : 'Artisan Login'}</Link></li>
               </ul>
             </div>
             <div>
